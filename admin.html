@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container admin-container">
+        <header style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="text-align: left;">
+                <h1>DASHBOARD</h1>
+                <h2>Visão Geral da Barbearia</h2>
+            </div>
+            <button id="btnFolga" style="background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 8px 15px; border-radius: 6px; cursor: pointer;">
+                + Bloquear Agenda
+            </button>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Faturamento (Mês)</div>
+                <div class="stat-value" id="lucroMes">R$ 0,00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Agendamentos</div>
+                <div class="stat-value" id="totalAgendamentos">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Ticket Médio</div>
+                <div class="stat-value" id="ticketMedio">R$ 0,00</div>
+            </div>
+        </div>
+
+        <h3 style="color: var(--text-muted); font-weight: 400; margin-bottom: 20px;">Próximos Clientes</h3>
+        <div id="listaAdmin" class="agenda-list">
+            </div>
+    </div>
+
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="admin.js"></script>
+</body>
+</html>

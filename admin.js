@@ -1,38 +1,123 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>Painel do Barbeiro</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <div class="container" style="max-width: 800px;">
-        <h1>Painel Administrativo 💈</h1>
+import { db } from './firebase-config.js';
+import { collection, onSnapshot, query, orderBy, deleteDoc, doc, addDoc } 
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { db } from './firebase-config.js';
+// ADICIONE ESSA LINHA ABAIXO PARA IMPORTAR O AUTH:
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+// ... resto das importações ...
+
+// 1. VERIFICAÇÃO DE SEGURANÇA (Adicione logo no começo)
+const auth = getAuth();
+
+onAuthStateChanged(auth, (user) => {
+    if (!user) {
+        // Se não tiver usuário logado, chuta para o login
+        window.location.replace("login.html");
+    }
+});
+
+// Botão de Sair (Adicione um botão com id="btnSair" no seu HTML do admin se quiser)
+// document.getElementById('btnSair').addEventListener('click', () => signOut(auth));
+
+// ... O RESTO DO SEU CÓDIGO CONTINUA IGUAL ABAIXO ...
+const lista = document.getElementById('listaAdmin');
+const elLucro = document.getElementById('lucroMes');
+const elTotal = document.getElementById('totalAgendamentos');
+const elTicket = document.getElementById('ticketMedio');
+
+// Formatador de Moeda
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+// Query ordenada por data e hora
+const q = query(collection(db, "agendamentos"), orderBy("data"), orderBy("hora"));
+
+onSnapshot(q, (snapshot) => {
+    lista.innerHTML = "";
+    
+    let totalLucro = 0;
+    let totalCortes = 0;
+    
+    // Mês Atual (ex: "2023-10")
+    const hoje = new Date();
+    const mesAtualString = hoje.toISOString().slice(0, 7); 
+
+    snapshot.forEach(docSnap => {
+        const ag = docSnap.data();
+        const id = docSnap.id;
+
+        // Cálculos (apenas se não for dia bloqueado/folga)
+        if (ag.data.startsWith(mesAtualString) && ag.valor > 0) {
+            totalLucro += ag.valor;
+            totalCortes++;
+        }
+
+        // Formatação da Data para exibição (DD/MM)
+        const dataFormatada = ag.data.split('-').reverse().slice(0,2).join('/');
+
+        // HTML do Item
+        const div = document.createElement('div');
+        div.className = 'appointment';
         
-        <div class="dashboard-stats">
-            <div class="card">
-                <h3>Lucro Mês</h3>
-                <div class="money" id="lucroMes">R$ 0,00</div>
-            </div>
-            <div class="card">
-                <h3>Agendamentos</h3>
-                <div class="money" id="totalAgendamentos">0</div>
-            </div>
-        </div>
+        // Estilo diferente para folga
+        if(ag.valor === 0) {
+            div.style.borderLeft = "4px solid #cf6679";
+            div.innerHTML = `
+                <div class="appt-details">
+                    <strong style="color:#cf6679">BLOQUEADO / FOLGA</strong>
+                    <span>${dataFormatada} - Dia Inteiro</span>
+                </div>
+                <button onclick="deletar('${id}')" class="btn-icon">×</button>
+            `;
+        } else {
+            div.innerHTML = `
+                <div class="appt-details">
+                    <strong>${ag.cliente}</strong>
+                    <span>${dataFormatada} às ${ag.hora} • ${ag.servico}</span>
+                </div>
+                <div style="display:flex; align-items:center">
+                    <div class="appt-meta">
+                        <span class="price">${brl.format(ag.valor)}</span>
+                        <span style="font-size:0.75rem; opacity:0.6; text-transform:uppercase;">${ag.pagamento}</span>
+                    </div>
+                    <button onclick="deletar('${id}')" class="btn-icon">✓</button>
+                </div>
+            `;
+        }
+        
+        lista.appendChild(div);
+    });
 
-        <div style="background: #444; padding: 10px; margin-bottom: 20px; border-radius: 5px;">
-            <h3>📅 Marcar Folga</h3>
-            <div style="display: flex; gap: 10px;">
-                <input type="date" id="dataFolga">
-                <button id="btnFolga" style="width: auto;">Bloquear Dia</button>
-            </div>
-        </div>
+    // Atualizar Dashboard
+    elLucro.innerText = brl.format(totalLucro);
+    elTotal.innerText = totalCortes;
+    
+    // Evitar divisão por zero no ticket médio
+    const ticket = totalCortes > 0 ? (totalLucro / totalCortes) : 0;
+    elTicket.innerText = brl.format(ticket);
+});
 
-        <h2>Agenda do Dia / Futura</h2>
-        <div id="listaAdmin">
-            </div>
-    </div>
+// Funções Globais
+window.deletar = async (id) => {
+    // Pequeno delay para efeito visual, se quisesse adicionar animação
+    if(confirm("Confirmar conclusão/remoção?")) {
+        await deleteDoc(doc(db, "agendamentos", id));
+    }
+}
 
-    <script type="module" src="admin.js"></script>
-</body>
-</html>
+// Botão de Folga (Simplificado para Minimalismo)
+document.getElementById('btnFolga').addEventListener('click', async () => {
+    const dataFolga = prompt("Digite a data da folga (AAAA-MM-DD):", new Date().toISOString().split('T')[0]);
+    
+    if (dataFolga) {
+        await addDoc(collection(db, "agendamentos"), {
+            cliente: "FOLGA",
+            servico: "Bloqueio",
+            valor: 0,
+            data: dataFolga,
+            hora: "00:00",
+            pagamento: "-",
+            criadoEm: new Date().toISOString()
+        });
+    }
+});
